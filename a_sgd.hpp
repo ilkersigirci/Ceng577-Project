@@ -2,4 +2,4 @@
 
 #include "data.hpp"
 
-double dot_product(Datapoint &data, Eigen::VectorXd &weight);
+double dot_product(Data &data, Eigen::VectorXd &weight);

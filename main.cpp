@@ -1,11 +1,6 @@
 #include <iostream>
 #include <string>
 
-/*
-To install MPI
-https://mpitutorial.com/tutorials/installing-mpich2/
-*/
-
 #include <mpi.h>
 #include <stdio.h>
 
