@@ -4,8 +4,13 @@
 #include <mpi.h>
 #include <stdio.h>
 
+#include "layer.h"
+
 int main(int argc, char* argv[])
 {
+    // set the random seed
+    srand((unsigned int) time(0));
+
     int rank, process_size;
     int name_len;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
@@ -24,6 +29,9 @@ int main(int argc, char* argv[])
 	
 	// Print all the configs
     printf("Processor %s, rank %d out of %d processors\n", processor_name, rank, process_size);
+
+    FullyConnectedLayer fc = FullyConnectedLayer(5, 10);
+    fc.printer();
 
     // Finalize the MPI environment.
     MPI_Finalize();
