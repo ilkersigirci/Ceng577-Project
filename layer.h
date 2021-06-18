@@ -35,8 +35,10 @@ public:
     int out_size;
 
     BaseLayer(const int in_size, const int out_size){
+
         this->in_size=in_size;
         this->out_size=out_size;
+
     }
     virtual ~BaseLayer(){}
 
@@ -57,39 +59,23 @@ public:
     typedef Vector::ConstAlignedMapType ConstAlignedMapVec;
     typedef Vector::AlignedMapType AlignedMapVec;
 
-    Matrix weights;
-    Vector biases;
-
-    Matrix d_weights;
-    Matrix d_biases;
-
-    Matrix y; // y = Ax + b
-    Matrix forward_res; // activation(y)
-
-    Matrix d_input; // derivative w.r.t input
-
-    int in_size;
-    int out_size;
-
     FullyConnectedLayer(const int in_size, const int out_size): BaseLayer(in_size, out_size) {
         this->weights.resize(in_size, out_size);
         this->biases.resize(out_size);
 
         // initialize weights and biases
         // Xavier initialization
-        this->weights = -sqrt(in_size) + (Eigen::ArrayXXd::Random(in_size, out_size) * 0.5 + 0.5) * (2 * sqrt(in_size));
-        this->biases = -sqrt(in_size) + (Eigen::ArrayXXd::Random(out_size, 1) * 0.5 + 0.5) * (2 * sqrt(in_size));
+        this->weights = -1.0/sqrt(in_size) + (Eigen::ArrayXXd::Random(in_size, out_size) * 0.5 + 0.5) * (2 * 1.0/sqrt(in_size));
+        this->biases = -1.0/sqrt(in_size) + (Eigen::ArrayXXd::Random(out_size, 1) * 0.5 + 0.5) * (2 * 1.0/sqrt(in_size));
     }
 
     ~FullyConnectedLayer(){}
 
     void forward(const Matrix &x) {
         const int batch_size = x.cols();
-
         this->y.resize(this->out_size, batch_size);
         this->y.noalias() = this->weights.transpose() * x;
         this->y.colwise() += this->biases;
-
         this->forward_res.resize(this->out_size, batch_size);
         Activation::activation(y, this->forward_res);
     }
