@@ -5,15 +5,15 @@
 #ifndef CENG577_PROJECT_LOSS_H
 #define CENG577_PROJECT_LOSS_H
 
-#include "Eigen/Core"
+#include "../Eigen/Core"
 
-class Loss {
-private:
+class RMSE {
+public:
+
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> Matrix;
     typedef Eigen::Matrix<double, Eigen::Dynamic, 1> Vector;
 
     Matrix output;
-public:
     // calculate layer output
     void evaluate(const Matrix& input, const Matrix& target){
             const int c = input.cols();
