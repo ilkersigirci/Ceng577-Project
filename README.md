@@ -7,10 +7,6 @@ sudo apt install mpich
 ### Verify Installation
 mpiexec --version
 
-## Install Boost (For Serialization)
-sudo apt install libboost-dev
-sudo apt install libboost-all-dev
-
 ### Verify Installation
 cat /usr/include/boost/version.hpp | grep "BOOST_LIB_VERSION"
 ### Compile
