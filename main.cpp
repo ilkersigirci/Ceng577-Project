@@ -54,11 +54,11 @@ int main(int argc, char* argv[])
 
     // int shared_data[4] = {10, 11, 12, 13};
     std::array<int, 4> shared_data{1, 2, 3};
-    int model_parameter, gradient_update;
+    double model_parameter, gradient_update;
     int iteration_num = 100;
     // int batch_size = 1;
 
-    int exchanged_data; // either gradient or model_parameter
+    double exchanged_data; // either gradient or model_parameter
     
     double t1, t2; 
 
@@ -102,8 +102,8 @@ int main(int argc, char* argv[])
         
         int model_parameter_bak = model_parameter;
 
-        for (int process=1; process < process_size; process++) // Broadcast initial model_parameters
-            MPI_Send(&model_parameter, 1, MPI_DOUBLE, process, PARAMETER_TAG, MPI_COMM_WORLD);
+        // for (int process=1; process < process_size; process++) // Broadcast initial model_parameters
+        //     MPI_Send(&model_parameter, 1, MPI_DOUBLE, process, PARAMETER_TAG, MPI_COMM_WORLD);
         
         for (int t = 0; t < iteration_num;)
         // while (true)
@@ -148,15 +148,17 @@ int main(int argc, char* argv[])
 
             int count;
 
+            MPI_Send(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD);
             MPI_Recv(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD, &stats[t]);
 
             MPI_Get_count(&stats[t] , MPI_DOUBLE, &count);
-            printf("Worker %d received %d element with tag %d and value %d from source %d\n", rank, count, stats[t].MPI_TAG, model_parameter, stats[t].MPI_SOURCE);
+            printf("Worker %d received %d element with tag %d and value %f from source %d\n", rank, count, stats[t].MPI_TAG, model_parameter, stats[t].MPI_SOURCE);
 
             // Gradient Computation
             gradient_update = minibatch * model_parameter;
 
             MPI_Isend(&gradient_update, 1, MPI_DOUBLE, PARAMETER_SERVER, GRADIENT_TAG, MPI_COMM_WORLD, &reqs[t]);
+            // MPI_Send(&gradient_update, 1, MPI_DOUBLE, PARAMETER_SERVER, GRADIENT_TAG, MPI_COMM_WORLD);
         }
     }
 
