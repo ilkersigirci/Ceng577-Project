@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     // int shared_data[4] = {10, 11, 12, 13};
     std::array<int, 4> shared_data{1, 2, 3};
     double model_parameter, gradient_update;
-    int iteration_num = 100;
+    int iteration_num = 10;
     // int batch_size = 1;
 
     double exchanged_data; // either gradient or model_parameter
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
         for (int t = 0; t < iteration_num;)
         // while (true)
         {
-            std::cout << "Server t " << t << std::endl;
+            // std::cout << "Server t " << t << std::endl;
 
             //TODO: Need Lock for multiple receive?
             MPI_Recv(&exchanged_data, 1, MPI_DOUBLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &stats[t]);
@@ -118,7 +118,8 @@ int main(int argc, char* argv[])
 
             if (recv_tag == GRADIENT_TAG)
             {
-                std::cout << "Gradient Update" << std::endl;
+                printf("At iteration %d, Server get Gradient Update from Worker %d\n", t, recv_source);
+
                 gradient_update = exchanged_data;
                 model_parameter = model_parameter - LEARNING_RATE * gradient_update;
                 t++;
@@ -126,11 +127,11 @@ int main(int argc, char* argv[])
 
             else if (recv_tag == PARAMETER_TAG) // pull request
             {
-                std::cout << "Pull Request" << std::endl;
+                printf("At iteration %d, Server get Pull Request from Worker %d\n", t, recv_source);
+
                 model_parameter_bak = model_parameter;
 
                 MPI_Isend(&model_parameter, 1, MPI_DOUBLE, recv_source, PARAMETER_TAG, MPI_COMM_WORLD, &reqs[t]);
-                //printf("Sent model_parameter %d from 0 to 1\n", model_parameter);
             }
         }
     }
@@ -138,21 +139,20 @@ int main(int argc, char* argv[])
     //TODO: deal with end condition
     else // workers
     {
-        for (int t = 0; t < iteration_num; t++)
+        for (int t = 0; t < iteration_num / 2; t++)
         // while (true)
         {
             // sleep(1);
-            std::cout << "Worker " << rank << ": t " << t << std::endl;
             int random_index = rand() % shared_data.size();
             int minibatch = shared_data[random_index];
 
             int count;
 
-            MPI_Send(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD);
+            MPI_Isend(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD, &reqs[t]);
             MPI_Recv(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD, &stats[t]);
 
             MPI_Get_count(&stats[t] , MPI_DOUBLE, &count);
-            printf("Worker %d received %d element with tag %d and value %f from source %d\n", rank, count, stats[t].MPI_TAG, model_parameter, stats[t].MPI_SOURCE);
+            printf("At iteration %d, Worker %d received %d element with tag %d and value %f from source %d\n", t, rank, count, stats[t].MPI_TAG, model_parameter, stats[t].MPI_SOURCE);
 
             // Gradient Computation
             gradient_update = minibatch * model_parameter;
