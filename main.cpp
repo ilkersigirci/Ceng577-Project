@@ -42,8 +42,6 @@ void check_error(int ierr, std::string operation)
         //printf("%s returned ierr %d\n", operation, ierr);
         std::cout << operation << " returned ierr " << ierr << std::endl;
         exit(1);
-
-        // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 }
 
@@ -52,36 +50,70 @@ int main(int argc, char* argv[])
     int rank, process_size, name_len;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
 
-    // int shared_data[4] = {10, 11, 12, 13};
-    std::array<int, 4> shared_data{1, 2, 3};
-    double model_parameter, gradient_update;
-    int iteration_num = 10;
-    // int batch_size = 1;
-
-    double exchanged_data; // either gradient or model_parameter
-    
-    double t1, t2; 
-
-    // MPI_Status status;
+    // For calculating start and finish time
+    double t1, t2;
 
     const int PARAMETER_TAG = 100;
     const int GRADIENT_TAG  = 101;
+    const int EXIT_TAG      = 666;
     const int PARAMETER_SERVER =  0;
 
-    const double EPSILON = 0.000001;
-    const double LEARNING_RATE = 0.001;
-    
+    // Create Data
+    Vector x1 = Vector::LinSpaced(1000, 0.0, 2.5);
+    Vector x2 = Vector::LinSpaced(1000, 3, 6);
+    Matrix x = Matrix::Random(2, 1000);
+    x.row(0) = x1;
+    x.row(1) = x2;
+    Matrix y = Matrix::Random(1, 1000);
+
+    // Fill the output for the training
+    for (int i = 0; i < y.cols(); i++)
+    {
+        y(0, i) = std::pow(x(0, i), 2) + std::pow(x(1, i), 2);
+    }
+
+    // Init Network
+    Network net;
+    BaseLayer* layer1 = new FullyConnectedLayer<Identity>(2, 200);
+    BaseLayer* layer2 = new FullyConnectedLayer<Sigmoid>(200, 200);
+    BaseLayer* layer3 = new FullyConnectedLayer<Identity>(200, 1);
+
+    // Add layers to the network object
+    net.layers.push_back(layer1);
+    net.layers.push_back(layer2);
+    net.layers.push_back(layer3);
+
+    // Init loss function
+    net.loss = new RMSE();
+
+    const int NETWORK_PARAM_SIZE = net.get_parameters().size();
+
+    // Training Hyper-parameters
+    const int num_iters = 1000;
+    const int batch_size = 8;
+
+    // network warm up
+    Matrix x_batch = Matrix::Random(2, batch_size);
+    Matrix y_batch = Matrix::Random(1, batch_size);
+    fetch_batches(x, y, batch_size, x_batch, y_batch);
+    net.batch_fit(x_batch, y_batch);
+
+    // Optimizer
+    SGD sgd;
+
+    std::vector<double> all_losses;
+
     int ierr = MPI_Init(&argc, &argv);
 
     check_error(ierr, "MPI_Init");
 
     t1 = MPI_Wtime();
 
-    MPI_Request reqs[iteration_num];
-    MPI_Status stats[iteration_num];
-	
+    MPI_Request req;
+    MPI_Status stat;
+
     MPI_Comm_size(MPI_COMM_WORLD, &process_size);
-	
+
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     MPI_Get_processor_name(processor_name, &name_len);
@@ -90,75 +122,87 @@ int main(int argc, char* argv[])
     {
         std::cout << "Please run it with at least 2 process." << std::endl;
         std::cout << "Example: mpirun -n 3 ./a_sgd" << std::endl;
-        
-        // MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+
         MPI_Finalize();
         exit(1);
     }
 
     if (rank == 0) // parameter server
     {
-        model_parameter = -1;
-        
-        int model_parameter_bak = model_parameter;
+        std::vector<double> received_grads;
+        received_grads.resize(NETWORK_PARAM_SIZE);
 
-        // for (int process=1; process < process_size; process++) // Broadcast initial model_parameters
-        //     MPI_Send(&model_parameter, 1, MPI_DOUBLE, process, PARAMETER_TAG, MPI_COMM_WORLD);
-        
-        for (int t = 0; t < iteration_num;)
-        // while (true)
-        {
-            // std::cout << "Server t " << t << std::endl;
+        for (int t = 0; t < num_iters;) {
+            MPI_Recv(&received_grads[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,
+                     &stat);
 
-            //TODO: Need Lock for multiple receive?
-            MPI_Recv(&exchanged_data, 1, MPI_DOUBLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &stats[t]);
+            int recv_source = stat.MPI_SOURCE;
+            int recv_tag = stat.MPI_TAG;
 
-            int recv_source = stats[t].MPI_SOURCE;
-            int recv_tag    = stats[t].MPI_TAG;
+            if (recv_tag == GRADIENT_TAG) {
+                net.set_grads(received_grads);
+                net.step(sgd);
+                Matrix x_batch = Matrix::Random(2, batch_size);
+                Matrix y_batch = Matrix::Random(1, batch_size);
+                fetch_batches(x, y, batch_size, x_batch, y_batch);
+                net.batch_fit(x_batch, y_batch);
 
-            if (recv_tag == GRADIENT_TAG)
-            {
-                printf("At iteration %d, Server get Gradient Update from Worker %d\n", t, recv_source);
+                double loss = net.loss->loss();
+                all_losses.push_back(loss);
+                printf("Iteration %d, Server get Gradient Update from Worker %d and the loss is %f\n", t, recv_source,
+                       loss);
 
-                gradient_update = exchanged_data;
-                model_parameter = model_parameter - LEARNING_RATE * gradient_update;
                 t++;
-            }
-
-            else if (recv_tag == PARAMETER_TAG) // pull request
+            } else if (recv_tag == PARAMETER_TAG) // pull request
             {
-                printf("At iteration %d, Server get Pull Request from Worker %d\n", t, recv_source);
-
-                model_parameter_bak = model_parameter;
-
-                MPI_Isend(&model_parameter, 1, MPI_DOUBLE, recv_source, PARAMETER_TAG, MPI_COMM_WORLD, &reqs[t]);
+                std::vector<double> network_params = net.get_parameters();
+                MPI_Ssend(&network_params[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, recv_source, PARAMETER_TAG,
+                          MPI_COMM_WORLD);
             }
         }
+        int temp_data = 1;
+
+        for (int process = 1; process < process_size; process++){ // Broadcast EXIT_CODE
+            MPI_Send(&temp_data, 1, MPI_INT, process, EXIT_TAG, MPI_COMM_WORLD);
+        }
+//        std::ofstream output_file("./async_losses_3.txt");
+//        std::ostream_iterator<double> output_iterator(output_file, "\n");
+//        std::copy(all_losses.begin(), all_losses.end(), output_iterator);
     }
 
-    //TODO: deal with end condition
     else // workers
     {
-        for (int t = 0; t < iteration_num / 2; t++)
-        // while (true)
-        {
-            // sleep(1);
-            int random_index = rand() % shared_data.size();
-            int minibatch = shared_data[random_index];
+        int t = 0;
+        std::vector<double> network_parameters;
+        network_parameters.resize(NETWORK_PARAM_SIZE);
 
+        while (true)
+        {
             int count;
 
-            MPI_Isend(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD, &reqs[t]);
-            MPI_Recv(&model_parameter, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD, &stats[t]);
+            MPI_Isend(&t, 1, MPI_DOUBLE, PARAMETER_SERVER, PARAMETER_TAG, MPI_COMM_WORLD, &req);
+            MPI_Recv(&network_parameters[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, PARAMETER_SERVER, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
 
-            MPI_Get_count(&stats[t] , MPI_DOUBLE, &count);
-            printf("At iteration %d, Worker %d received %d element with tag %d and value %f from source %d\n", t, rank, count, stats[t].MPI_TAG, model_parameter, stats[t].MPI_SOURCE);
+            int recv_tag = stat.MPI_TAG;
 
-            // Gradient Computation
-            gradient_update = minibatch * model_parameter;
+            if (recv_tag == EXIT_TAG)
+            {
+                printf("Worker %d received EXIT CODE\n", rank);
+                break;
+            }
+            net.set_parameters(network_parameters);
 
-            MPI_Isend(&gradient_update, 1, MPI_DOUBLE, PARAMETER_SERVER, GRADIENT_TAG, MPI_COMM_WORLD, &reqs[t]);
-            // MPI_Send(&gradient_update, 1, MPI_DOUBLE, PARAMETER_SERVER, GRADIENT_TAG, MPI_COMM_WORLD);
+            Matrix x_batch = Matrix::Random(2, batch_size);
+            Matrix y_batch = Matrix::Random(1, batch_size);
+            fetch_batches(x, y, batch_size, x_batch, y_batch);
+
+            MPI_Get_count(&stat , MPI_DOUBLE, &count);
+
+            net.batch_fit(x_batch, y_batch);
+
+            std::vector<double> net_grads = net.get_grads();
+            MPI_Send(&net_grads[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, PARAMETER_SERVER, GRADIENT_TAG, MPI_COMM_WORLD);
+            t++;
         }
     }
 

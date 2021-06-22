@@ -45,6 +45,9 @@ public:
     virtual void forward(const Matrix &x)=0;
     virtual void backward(const Matrix &prev_layer_data, const Matrix &next_layer_data)=0;
     virtual void update(SGD& sgd)=0;
+    virtual int get_param_size()=0;
+    virtual std::vector<double> get_grads()=0;
+    virtual void set_grads(std::vector<double>& grads)=0;
     virtual std::vector<double> get_parameters()=0;
     virtual void set_parameters(const std::vector<double>& param)=0;
     virtual void printer()=0;
@@ -107,17 +110,39 @@ public:
         std::copy(this->weights.data(), this->weights.data() + this->weights.size(), res.begin());
         std::copy(this->biases.data(), this->biases.data() + this->biases.size(),
                   res.begin() + this->weights.size());
+
+        return res;
+    }
+
+    std::vector<double> get_grads(){
+        std::vector<double> res(this->d_weights.size() + this->d_biases.size());
+        std::copy(this->d_weights.data(), this->d_weights.data() + this->d_weights.size(), res.begin());
+        std::copy(this->d_biases.data(), this->d_biases.data() + this->d_biases.size(),
+                  res.begin() + this->d_weights.size());
+
         return res;
     }
 
     void set_parameters(const std::vector<double>& param){
-        if (static_cast<int>(param.size()) != this->weights.size() + this->biases.size())
-        {
+        if (static_cast<int>(param.size()) != this->weights.size() + this->biases.size()){
             throw std::invalid_argument("[class FullyConnectedLayer]: Parameter size does not match");
         }
 
         std::copy(param.begin(), param.begin() + this->weights.size(), this->weights.data());
         std::copy(param.begin() + this->weights.size(), param.end(), this->biases.data());
+    }
+
+    int get_param_size(){
+        return this->weights.size() + this->biases.size();
+    }
+
+    void set_grads(std::vector<double>& grads){
+        if (static_cast<int>(grads.size()) != this->d_weights.size() + this->d_biases.size()){
+            throw std::invalid_argument("[class FullyConnectedLayer]: Grads size does not match");
+        }
+
+        std::copy(grads.begin(), grads.begin() + this->d_weights.size(), this->d_weights.data());
+        std::copy(grads.begin() + this->d_weights.size(), grads.end(), this->d_biases.data());
     }
 
     void printer() {

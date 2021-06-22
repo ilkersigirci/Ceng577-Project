@@ -36,17 +36,37 @@ public:
         }
     }
 
-    std::vector<std::vector<double>> get_parameters(){
+    std::vector<double> get_grads(){
         const int layer_count = this->layers.size();
-        std::vector<std::vector<double>> res;
-        res.reserve(layer_count);
+        std::vector<double> res;
 
         for(int i=0; i<layer_count; i++){
-            res.push_back(this->layers[i]->get_parameters());
+            std::vector<double> layer_grads = this->layers[i]->get_grads();
+            res.insert(res.end(), layer_grads.begin(), layer_grads.end());
         }
 
         return res;
     }
+
+    std::vector<double> get_parameters(){
+        const int layer_count = this->layers.size();
+        std::vector<double> res;
+
+        for(int i=0; i<layer_count; i++){
+            std::vector<double> layer_params = this->layers[i]->get_parameters();
+            res.insert(res.end(), layer_params.begin(), layer_params.end());
+        }
+
+        return res;
+    }
+
+    template <typename X, typename Y>
+    void batch_fit(const Eigen::MatrixBase<X>& x,
+                   const Eigen::MatrixBase<Y>& y){
+        this->forward(x);
+        this->backward(x, y);
+    }
+
     template <typename X, typename Y>
     void batch_fit(const Eigen::MatrixBase<X>& x,
                    const Eigen::MatrixBase<Y>& y, SGD& sgd){
@@ -123,6 +143,65 @@ public:
         return this->layers[num_layer-1]->forward_res;
     }
 
+    void set_grads(std::vector<double>& grads){
+        int network_param_size = 0;
+
+        for(int i=0; i<this->layers.size(); i++){
+            network_param_size += this->layers[i]->get_param_size();
+        }
+
+        if(network_param_size != grads.size()){
+            throw std::invalid_argument("[class Network]: grads size is not match with network parameter size");
+        }
+
+        int offset = 0;
+        for(int i=0; i<this->layers.size(); i++){
+            int layer_size = this->layers[i]->get_param_size();
+            std::vector<double> layer_grads = slicing(grads, offset, offset + layer_size);
+            this->layers[i]->set_grads(layer_grads);
+            offset += layer_size;
+        }
+    }
+
+
+    void set_parameters(std::vector<double>& params){
+        int network_param_size = 0;
+
+        for(int i=0; i<this->layers.size(); i++){
+            network_param_size += this->layers[i]->get_param_size();
+        }
+
+        if(network_param_size != params.size()){
+            throw std::invalid_argument("[class Network]: params size is not match with network parameter size");
+        }
+
+        int offset = 0;
+        for(int i=0; i<this->layers.size(); i++){
+            int layer_size = this->layers[i]->get_param_size();
+            std::vector<double> layer_params = slicing(params, offset, offset + layer_size);
+            this->layers[i]->set_parameters(layer_params);
+            offset += layer_size;
+        }
+    }
+
+
+    // https://www.geeksforgeeks.org/slicing-a-vector-in-c/
+    std::vector<double> slicing(std::vector<double>& arr,
+                        int X, int Y)
+    {
+        // Starting and Ending iterators
+        auto start = arr.begin() + X;
+        auto end = arr.begin() + Y;
+
+        // To store the sliced vector
+        std::vector<double> result(Y - X);
+
+        // Copy vector using copy function()
+        std::copy(start, end, result.begin());
+
+        // Return the final sliced vector
+        return result;
+    }
 
 };
 

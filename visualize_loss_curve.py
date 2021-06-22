@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--input', required=True, help="input file")
+parser.add_argument('--smooth', required=False, action='store_true')
 
 args = parser.parse_args()
 
@@ -32,7 +33,12 @@ all_losses = []
 with open(args.input, "r") as loss_file:
     losses = loss_file.readlines()
     for loss in losses:
-        avg_losses.update(float(loss))
-        all_losses.append(avg_losses.avg)
+
+        if args.smooth:
+            avg_losses.update(float(loss))
+            all_losses.append(avg_losses.avg)
+        else:
+            all_losses.append(float(loss))
+
     plt.plot(all_losses)
     plt.show()
