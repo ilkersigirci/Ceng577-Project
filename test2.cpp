@@ -1,0 +1,93 @@
+//#include <fstream>
+//#include <iterator>
+//
+//#include "Eigen/Core"
+//#include "activations/Sigmoid.h"
+//#include "activations/Identity.h"
+//#include "layer.h"
+//#include "Network.h"
+//#include "losses/RMSE.h"
+//#include "SGD.h"
+//#include "utils.h"
+//
+//
+//typedef Eigen::MatrixXd Matrix;
+//typedef Eigen::VectorXd Vector;
+//
+//
+//int main(){
+////    srand((unsigned int) time(0));
+//    srand((unsigned int) 0);
+//
+//    Vector x1 = Vector::LinSpaced(1000, 0.0, 2.5);
+//    Vector x2 = Vector::LinSpaced(1000, 3, 6);
+//    Matrix x = Matrix::Random(2, 1000);
+//    x.row(0) = x1;
+//    x.row(1) = x2;
+//    Matrix y = Matrix::Random(1, 1000);
+//
+//    // Fill the output for the training
+//    for (int i = 0; i < y.cols(); i++)
+//    {
+//        y(0, i) = std::pow(x(0, i), 2) + std::pow(x(1, i), 2);
+//    }
+//
+//    Network net;
+//    BaseLayer* layer1 = new FullyConnectedLayer<Identity>(2, 200);
+//    BaseLayer* layer2 = new FullyConnectedLayer<Sigmoid>(200, 200);
+//    BaseLayer* layer3 = new FullyConnectedLayer<Identity>(200, 1);
+//
+//    // Add layers to the network object
+//    net.layers.push_back(layer1);
+//    net.layers.push_back(layer2);
+//    net.layers.push_back(layer3);
+//
+//    // specify loss function
+//    net.loss = new RMSE();
+//
+//    SGD sgd;
+//
+//    int num_iters = 10000;
+//    const int batch_size = 8;
+//
+//    std::vector<double> losses;
+//    for(int i=0; i<num_iters; i++){
+//        Matrix x_batch = Matrix::Random(2, batch_size);
+//        Matrix y_batch = Matrix::Random(1, batch_size);
+//        fetch_batches(x, y, batch_size, x_batch, y_batch);
+//        net.batch_fit(x_batch, y_batch, sgd);
+//        losses.push_back(net.loss->loss());
+//
+//        if((i+1)%250 == 0){
+//
+//            std::cout <<"LOSS "<<net.loss->loss()<<std::endl;
+//
+//            std::cout <<"BATCH_x "<<std::endl;
+//            std::cout << x_batch<<std::endl<<std::endl;
+//
+//            std::cout<< y_batch <<std::endl;
+//
+//            std::cout<<"PREDICTIONS"<<std::endl;
+//            std::cout << net.predict(x_batch) << std::endl;
+//        }
+//
+//    }
+//    Matrix t = Matrix::Random(2, 2);
+//    t(0,0) = 1.1;
+//    t(1,0) = 4.1;
+//
+//    t(0,1) = 1.1;
+//    t(1,1) = 5.1;
+//
+//    Matrix t_y = Matrix::Random(1, 2);
+//    t_y(0, 0) = 18.02;
+//    t_y(0, 1) = 26.0;
+//
+//    std::cout<<"TESTING"<<std::endl;
+//    net.predict(x);
+//    std::cout << "Loss: "<<net.loss->loss()<<std::endl;
+//
+//    std::ofstream output_file("./losses.txt");
+//    std::ostream_iterator<double> output_iterator(output_file, "\n");
+//    std::copy(losses.begin(), losses.end(), output_iterator);
+//}
