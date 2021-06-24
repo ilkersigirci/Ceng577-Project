@@ -8,6 +8,8 @@
 
 #include <fstream>
 #include <iterator>
+#include<ctime>
+#include<string>
 
 #include "Eigen/Core"
 #include "activations/Sigmoid.h"
@@ -89,7 +91,7 @@ int main(int argc, char* argv[])
     const int NETWORK_PARAM_SIZE = net.get_parameters().size();
 
     // Training Hyper-parameters
-    const int num_iters = 1000;
+    const int num_iters = 2000;
     const int batch_size = 8;
 
     // network warm up
@@ -129,10 +131,12 @@ int main(int argc, char* argv[])
 
     if (rank == 0) // parameter server
     {
+        int LOG_PERIOD = 50;
+        int live_process_cnt = process_size - 1;
         std::vector<double> received_grads;
         received_grads.resize(NETWORK_PARAM_SIZE);
 
-        for (int t = 0; t < num_iters;) {
+        for (int t = 0; t < num_iters + 1 && live_process_cnt;) {
             MPI_Recv(&received_grads[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD,
                      &stat);
 
@@ -149,25 +153,31 @@ int main(int argc, char* argv[])
 
                 double loss = net.loss->loss();
                 all_losses.push_back(loss);
-                printf("Iteration %d, Server get Gradient Update from Worker %d and the loss is %f\n", t, recv_source,
-                       loss);
+                if (t % LOG_PERIOD == 0) {
+                    printf("Iteration %d, Server get Gradient Update from Worker %d and the loss is %f\n", t,
+                           recv_source,
+                           loss);
+                }
 
                 t++;
             } else if (recv_tag == PARAMETER_TAG) // pull request
             {
-                std::vector<double> network_params = net.get_parameters();
-                MPI_Ssend(&network_params[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, recv_source, PARAMETER_TAG,
-                          MPI_COMM_WORLD);
+                if (t >= num_iters - live_process_cnt + 1) {
+                    int temp_data = 1;
+                    MPI_Send(&temp_data, 1, MPI_INT, recv_source, EXIT_TAG, MPI_COMM_WORLD);
+                    live_process_cnt -= 1;
+                }
+                else {
+                    std::vector<double> network_params = net.get_parameters();
+                    MPI_Ssend(&network_params[0], NETWORK_PARAM_SIZE, MPI_DOUBLE, recv_source, PARAMETER_TAG,
+                              MPI_COMM_WORLD);
+                }
             }
         }
-        int temp_data = 1;
-
-        for (int process = 1; process < process_size; process++){ // Broadcast EXIT_CODE
-            MPI_Send(&temp_data, 1, MPI_INT, process, EXIT_TAG, MPI_COMM_WORLD);
-        }
-//        std::ofstream output_file("./async_losses_3.txt");
-//        std::ostream_iterator<double> output_iterator(output_file, "\n");
-//        std::copy(all_losses.begin(), all_losses.end(), output_iterator);
+        std::time_t tt = std::time(0);
+        std::ofstream output_file("./losses_" + std::to_string(tt) + ".txt");
+        std::ostream_iterator<double> output_iterator(output_file, "\n");
+        std::copy(all_losses.begin(), all_losses.end(), output_iterator);
     }
 
     else // workers
