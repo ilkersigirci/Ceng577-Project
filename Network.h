@@ -10,7 +10,7 @@
 #include "Eigen/Core"
 #include "SGD.h"
 #include "losses/RMSE.h"
-#include "layer.h"
+#include "Layer.h"
 
 class Network {
 public:

@@ -14,7 +14,7 @@
 #include "Eigen/Core"
 #include "activations/Sigmoid.h"
 #include "activations/Identity.h"
-#include "layer.h"
+#include "Layer.h"
 #include "Network.h"
 #include "losses/RMSE.h"
 #include "SGD.h"
