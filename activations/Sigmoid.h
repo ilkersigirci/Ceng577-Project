@@ -1,7 +1,3 @@
-//
-// Created by ozhan on 16.06.2021.
-//
-
 #ifndef CENG577_PROJECT_SIGMOID_H
 #define CENG577_PROJECT_SIGMOID_H
 

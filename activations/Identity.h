@@ -1,7 +1,3 @@
-//
-// Created by ozhan on 17.06.2021.
-//
-
 #ifndef CENG577_PROJECT_IDENTITY_H
 #define CENG577_PROJECT_IDENTITY_H
 

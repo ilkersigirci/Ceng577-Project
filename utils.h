@@ -1,7 +1,3 @@
-//
-// Created by ozhan on 18.06.2021.
-//
-
 #ifndef CENG577_PROJECT_UTILS_H
 #define CENG577_PROJECT_UTILS_H
 

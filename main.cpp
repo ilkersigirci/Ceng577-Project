@@ -23,19 +23,6 @@
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::VectorXd Vector;
 
-/*
-* MPI_Send -> executes without waiting the receive
-*             works like MPI_Bsend(?) or MPI_Rsend not MPI_Ssend
-* int MPI_Send(void *buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm)
-* int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Request *request)
-
-* // Wait for the MPI_Isend to complete before progressing further.
-* MPI_Wait(&reqs[t], MPI_STATUS_IGNORE);
-* request.Wait(status); // C++
-
-* MPI_Test(&reqs[t], &flag, &status);
-* flag = request.Test( status ); // C++
-*/
 
 void check_error(int ierr, std::string operation)
 {

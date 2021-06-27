@@ -1,7 +1,3 @@
-//
-// Created by bedirhan on 15.06.2021.
-//
-
 #ifndef CENG577_PROJECT_LOSS_H
 #define CENG577_PROJECT_LOSS_H
 
