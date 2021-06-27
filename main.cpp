@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 
     // Training Hyper-parameters
     const int num_iters = 2000;
-    const int batch_size = 8;
+    const int batch_size = 16;
 
     // network warm up
     Matrix x_batch = Matrix::Random(2, batch_size);
